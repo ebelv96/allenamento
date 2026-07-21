@@ -317,6 +317,33 @@
 
   function tagClass(tag){ return tag === "legs" ? "legs" : (tag === "braccia" || tag === "arms" ? "braccia" : "addome"); }
 
+let sharedAudioCtx = null;
+  function getAudioCtx(){
+    if (!sharedAudioCtx) sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (sharedAudioCtx.state === "suspended") sharedAudioCtx.resume();
+    return sharedAudioCtx;
+  }
+  function playBeep(times){
+    times = times || 1;
+    try {
+      const ctx = getAudioCtx();
+      let t = ctx.currentTime;
+      for (let i = 0; i < times; i++){
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.001, t);
+        gain.gain.exponentialRampToValueAtTime(0.3, t + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.3);
+        t += 0.35;
+      }
+    } catch(e){}
+  }
+ 
   function fmtTime(sec){
     const m = Math.floor(sec/60).toString().padStart(2,"0");
     const s = Math.floor(sec%60).toString().padStart(2,"0");
@@ -324,8 +351,15 @@
   }
 
   // ---------- sincronizzazione dei risultati verso il Google Sheet (foglio Log) ----------
+ let isSyncing = false;
   async function syncDayToSheet(dayId){
+    if (isSyncing) return; // evita invii doppi se tocchi più volte
+    const btn = document.getElementById("syncBtn");
     if (!SHEET_API_URL) { flashSyncMsg("Configura SHEET_API_URL per sincronizzare col foglio"); return; }
+
+    isSyncing = true;
+    if (btn) { btn.disabled = true; btn.textContent = "Sincronizzazione…"; }
+
     const day = DAYS[dayId];
     const p = state.progress[dayId];
     const entries = day.exercises.map(ex => ({
@@ -339,16 +373,25 @@
       CIRCUIT.forEach(c => row[c.name] = p.circuit[r][c.id]);
       return row;
     });
+
     try {
       await fetch(SHEET_API_URL, {
         method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" }, // evita preflight CORS
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({ date: todayKey, day: day.label, entries, circuito })
       });
       flashSyncMsg("Sincronizzato ✓ (controlla il foglio Log)");
+      if (btn) { btn.textContent = "✓ Sincronizzato"; btn.style.background = "var(--tag-core)"; btn.style.borderColor = "var(--tag-core)"; btn.style.color = "#14180f"; }
     } catch(err){
       flashSyncMsg("Sincronizzazione non riuscita, riprova");
+      if (btn) { btn.textContent = "Riprova a sincronizzare"; }
     }
+
+    setTimeout(() => {
+      isSyncing = false;
+      if (btn) { btn.disabled = false; btn.textContent = "Sincronizza allenamento di oggi"; btn.style.background = ""; btn.style.borderColor = ""; btn.style.color = ""; }
+    }, 2500);
   }
 
   function flashSyncMsg(msg){
@@ -575,6 +618,7 @@
   function startCountdownRaw(){
     if (timer.interval) clearInterval(timer.interval);
     timer.running = true;
+   getAudioCtx(); // "sblocca" l'audio sul telefono al primo avvio del timer
     updateStartPauseLabel();
     timer.interval = setInterval(() => {
       if (timer.mode === "stopwatch") { timer.seconds += 1; }
@@ -607,6 +651,7 @@
       }
     }
     if (navigator.vibrate) { try { navigator.vibrate([200,100,200]); } catch(e){} }
+   playBeep(3);
     render();
     openTimerPanel();
   }
