@@ -166,7 +166,9 @@
 </head>
 <body>
 <div id="app-root"><div class="loading-msg">Carico la scheda…</div></div>
-
+  .alt-row { margin-top: 8px; font-size: 12px; color: var(--text-dim); }
+  .alt-label { font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: .06em; margin-right: 4px; }
+  .alt-link { color: var(--text); text-decoration: none; border-bottom: 1px dashed var(--line); }
 <script>
 (function(){
 
@@ -241,7 +243,8 @@
         if (!days[e.Giorno]) return;
         days[e.Giorno].exercises.push({
           id: "d" + e.Giorno + "-" + (days[e.Giorno].exercises.length+1),
-          name: e.Nome, target: e.Target, sets: parseInt(e.Serie)||1, video: e.Video
+                   name: e.Nome, target: e.Target, sets: parseInt(e.Serie)||1, video: e.Video,
+          alt: e.Alternativa || "", altVideo: e.VideoAlternativa || ""
         });
       });
     const circuit = circuito
@@ -428,6 +431,7 @@ let sharedAudioCtx = null;
         <a class="video-link" href="${ex.video}" target="_blank" rel="noopener">
           <span class="play-ico">▶</span> Guarda l'esecuzione
         </a>
+                ${ex.alt ? `<div class="alt-row"><span class="alt-label">Se manca:</span> ${ex.altVideo ? `<a class="alt-link" href="${ex.altVideo}" target="_blank" rel="noopener">${ex.alt} ▶</a>` : ex.alt}</div>` : ""}
         <div class="sets-row">${setsHtml}</div>
         <div class="weight-row">
           <label>Carico usato</label>
